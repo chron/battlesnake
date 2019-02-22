@@ -1,46 +1,60 @@
 require 'sinatra'
 require 'json'
+require_relative 'point'
+require_relative 'snake'
+require_relative 'board'
 
 get '/' do
-    'Battlesnake documentation can be found at' \
-     '<a href=\"https://docs.battlesnake.io\">https://docs.battlesnake.io</a>.'
+  ''
 end
 
 post '/start' do
-    requestBody = request.body.read
-    requestJson = requestBody ? JSON.parse(requestBody) : {}
+  body = request.body.read
+  json = body ? JSON.parse(body) : {}
 
-    # Example response
-    responseObject = {
-        "color"=> "#fff000",
-    }
+  response = { headType: 'smile', tailType: 'fat-rattle', color: '#dc006e' }
 
-    return responseObject.to_json
+  response.to_json
 end
 
 post '/move' do
-    requestBody = request.body.read
-    requestJson = requestBody ? JSON.parse(requestBody) : {}
+  body = request.body.read
+  return '' if body.nil? || body == ''
 
-    # Calculate a direction (example)
-    direction = ["up", "right"].sample
+  begin
+    json = body ? JSON.parse(body) : {}
+  rescue JSON::ParserError
+    raise body.inspect
+  end
 
-    # Example response
-    responseObject = {
-        "move" => direction
-    }
+  board = Board.new(json['board'], json.dig('you', 'id'))
 
-    return responseObject.to_json
+  me = board.me
+
+  options = board.free_spaces_adjacent_to(me.head)
+  #puts "Snake at #{me.head.inspect}"
+  #puts "Possible moves: #{options}"
+
+  nearest_food = board.food.min_by { |f| me.head.manhattan_to(f) }
+  next_space = options.min_by { |s| s.manhattan_to(nearest_food) }
+
+  #puts "Choice: #{next_space.inspect}"
+
+  direction = if next_space.x < me.head.x
+    :left
+  elsif next_space.x > me.head.x
+    :right
+  elsif next_space.y < me.head.y
+    :up
+  else
+    :down
+  end
+
+  { move: direction }.to_json
 end
 
 post '/end' do
-    requestBody = request.body.read
-    requestJson = requestBody ? JSON.parse(requestBody) : {}
-
-    # No response required
-    responseObject = {}
-
-    return responseObject.to_json
+  {}.to_json
 end
 
 post '/ping' do
